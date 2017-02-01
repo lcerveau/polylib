@@ -10,6 +10,7 @@
 		2A9FADCE1E35DFDD0075E76E /* polylib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2A9FADC41E35DFDD0075E76E /* polylib.framework */; };
 		2A9FADD31E35DFDD0075E76E /* polylibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A9FADD21E35DFDD0075E76E /* polylibTests.swift */; };
 		2A9FADD51E35DFDD0075E76E /* polylib.h in Headers */ = {isa = PBXBuildFile; fileRef = 2A9FADC71E35DFDD0075E76E /* polylib.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		2A9FADDF1E35E0090075E76E /* polynomial.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A9FADDE1E35E0090075E76E /* polynomial.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -29,6 +30,7 @@
 		2A9FADCD1E35DFDD0075E76E /* polylibTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = polylibTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A9FADD21E35DFDD0075E76E /* polylibTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = polylibTests.swift; sourceTree = "<group>"; };
 		2A9FADD41E35DFDD0075E76E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		2A9FADDE1E35E0090075E76E /* polynomial.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = polynomial.swift; path = polylib/polynomial.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -53,6 +55,7 @@
 		2A9FADBA1E35DFDC0075E76E = {
 			isa = PBXGroup;
 			children = (
+				2A9FADDE1E35E0090075E76E /* polynomial.swift */,
 				2A9FADC61E35DFDD0075E76E /* polylib */,
 				2A9FADD11E35DFDD0075E76E /* polylibTests */,
 				2A9FADC51E35DFDD0075E76E /* Products */,
@@ -149,6 +152,7 @@
 					2A9FADC31E35DFDD0075E76E = {
 						CreatedOnToolsVersion = 8.2.1;
 						DevelopmentTeam = E57NY67VPR;
+						LastSwiftMigration = 0820;
 						ProvisioningStyle = Automatic;
 					};
 					2A9FADCC1E35DFDD0075E76E = {
@@ -198,6 +202,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2A9FADDF1E35E0090075E76E /* polynomial.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -322,6 +327,7 @@
 		2A9FADD91E35DFDD0075E76E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "";
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = E57NY67VPR;
@@ -334,6 +340,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.mmyneta.polylib;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 3.0;
 			};
 			name = Debug;
@@ -341,6 +348,7 @@
 		2A9FADDA1E35DFDD0075E76E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "";
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = E57NY67VPR;
@@ -360,6 +368,7 @@
 		2A9FADDC1E35DFDD0075E76E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				DEVELOPMENT_TEAM = E57NY67VPR;
 				INFOPLIST_FILE = polylibTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
@@ -372,6 +381,7 @@
 		2A9FADDD1E35DFDD0075E76E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				DEVELOPMENT_TEAM = E57NY67VPR;
 				INFOPLIST_FILE = polylibTests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
