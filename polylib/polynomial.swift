@@ -9,6 +9,7 @@
 import Foundation
 import Accelerate
 
+
 prefix operator ∂
 prefix operator ∫
 
@@ -23,6 +24,7 @@ struct polynomial:CustomStringConvertible {
     
     //At init we need to check if we are passed array with useless values (trailing 0)
     init(coefficients:[Float]) {
+        
             //we remove all trailings 0
         let trailing0 = coefficients.reversed().reduce((true ,0)) { (result, value) in
             guard result.0 == true else { return (false, result.1) }
@@ -81,6 +83,7 @@ struct polynomial:CustomStringConvertible {
         }).filter( {
             sCoeff in return (sCoeff != "");
         })
+        
         return stringCoeffs.joined(separator: "")
     }
     
@@ -118,11 +121,9 @@ struct polynomial:CustomStringConvertible {
     
     //Multiplication of 2 polynomials
     static func *(left: polynomial, right:polynomial) -> polynomial {
-        var resultCoefficients = [Float](repeating: 0, count: left.degree+right.degree+1    )
+        var resultCoefficients = [Float](repeating: 0, count: left.degree+right.degree+1 )
         right.coefficients.enumerated().forEach({ (idx: Int, relem: Float) in
-            print(idx)
             left.coefficients.enumerated().forEach({ (jdx: Int, lelem: Float) in
-                print(jdx)
                 resultCoefficients[idx+jdx] = resultCoefficients[idx+jdx]+lelem*relem
             })
         })        
@@ -131,9 +132,15 @@ struct polynomial:CustomStringConvertible {
     
     
     //Division of 2 polynomials
-    static func %(left: polynomial, right:polynomial) -> (polynomial, polynomial) {
+    static func % (left: polynomial, right:polynomial) -> (polynomial) {
+        var resultCoefficients:[Float] = (left.degree < right.degree)  ? [Float]() : [Float](repeating: 0, count: left.degree-right.degree+1 )
         
-        return (polynomial(coefficients: []), polynomial(coefficients: []))
+        var nextDividePol = left
+//        left.coefficients.reversed().reduce(left) { (polynomial, Float) -> polynomial in
+//            return polynomial(coefficients: [0])
+//        }
+        
+        return (polynomial(coefficients: []))
     }
     
     //Evaluation of data:
@@ -155,6 +162,30 @@ struct polynomial:CustomStringConvertible {
     }
     
 
+    func zeros() -> [Float] {
+        switch self.coefficients.count {
+        case 0:
+            return []
+        case 1:
+            return 0 == (self.coefficients[0]) ? [Float.greatestFiniteMagnitude] : []
+        case 2:
+           return [-self.coefficients[0]/self.coefficients[1]]
+        case 3:
+            let delta = self.coefficients[1] * self.coefficients[1] - 4 * self.coefficients[0] * self.coefficients[0]
+            if delta < 0 {
+                return []
+            } else if delta ==  0 {
+                return []
+            } else {
+                return [(-self.coefficients[1] - sqrt(delta))/(2*self.coefficients[0]), (-self.coefficients[1] + sqrt(delta))/(2*self.coefficients[0])]
+            }
+            
+        default:
+            return []
+        }
+        
+        
+    }
     
     //derivative
     static prefix func ∂ (left: polynomial) -> polynomial {
