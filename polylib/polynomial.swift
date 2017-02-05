@@ -26,7 +26,7 @@ struct polynomial:CustomStringConvertible {
     init(coefficients:[Float]) {
         
             //we remove all trailings 0
-        let trailing0 = coefficients.reversed().reduce((true ,0)) { (result, value) in
+        let trailing0:(Bool, Int) = coefficients.reversed().reduce((true ,0)) { (result, value) in
             guard result.0 == true else { return (false, result.1) }
             return (0.0 == value) ? (true, result.1+1) : (false, result.1)
         }
@@ -45,14 +45,10 @@ struct polynomial:CustomStringConvertible {
         
         var firstNonZeroIndex:Int = -1;
         
-        let stringCoeffs = coefficients.enumerated().map({
-            (index, coeff) in
-            
+        let stringCoeffs = coefficients.enumerated().map({ (index, coeff) in
             
             if coeff < 0 {
-                if -1 == firstNonZeroIndex {
-                    firstNonZeroIndex = index
-                }
+                if -1 == firstNonZeroIndex { firstNonZeroIndex = index }
                 switch index {
                     case 0:
                         return "\(coeff)"
@@ -64,16 +60,14 @@ struct polynomial:CustomStringConvertible {
             } else if 0 == coeff {
                 return ""
             } else {
-                if -1 == firstNonZeroIndex {
-                    firstNonZeroIndex = index
-                }
+                if -1 == firstNonZeroIndex { firstNonZeroIndex = index }
                 switch index {
                     case 0:
                         return "\(coeff)"
                     case 1:
                         return ((1 == coeff) ?
                                     ((firstNonZeroIndex == index) ? "X" :"+X") :
-                                    ((firstNonZeroIndex == index) ? "+\(coeff)X" :"+\(coeff)X"))
+                                    ((firstNonZeroIndex == index) ? "\(coeff)X" :"+\(coeff)X"))
                     default:
                         return ((1 == coeff) ?
                                     ((firstNonZeroIndex == index) ? "X^\(index)" : "+X^\(index)") :
@@ -98,7 +92,7 @@ struct polynomial:CustomStringConvertible {
         return polynomial(coefficients: sumCoeffs)
     }
     
-    //Multiply by a constant : associativity
+    //Equality test : coefficients are the same
     static func ==(left: polynomial, right:polynomial) -> Bool {
         return left.coefficients == right.coefficients
     }
@@ -122,8 +116,8 @@ struct polynomial:CustomStringConvertible {
     //Multiplication of 2 polynomials
     static func *(left: polynomial, right:polynomial) -> polynomial {
         var resultCoefficients = [Float](repeating: 0, count: left.degree+right.degree+1 )
-        right.coefficients.enumerated().forEach({ (idx: Int, relem: Float) in
-            left.coefficients.enumerated().forEach({ (jdx: Int, lelem: Float) in
+        left.coefficients.enumerated().forEach({ (idx: Int, lelem: Float) in
+            right.coefficients.enumerated().forEach({ (jdx: Int, relem: Float) in
                 resultCoefficients[idx+jdx] = resultCoefficients[idx+jdx]+lelem*relem
             })
         })        
@@ -134,18 +128,28 @@ struct polynomial:CustomStringConvertible {
     //Division of 2 polynomials
     static func % (left: polynomial, right:polynomial) -> (polynomial) {
         var resultCoefficients:[Float] = (left.degree < right.degree)  ? [Float]() : [Float](repeating: 0, count: left.degree-right.degree+1 )
+                
+        _ = left.coefficients.reversed().enumerated().reduce(left.coefficients) { (result, value) in
+            var tmpResult:[Float] = result
+            let ldegree:Int = result.count - value.0 - 1
+            let rdegree:Int = right.coefficients.count - 1
+            
+            if ldegree >= rdegree {
+                resultCoefficients[ldegree-rdegree] =  tmpResult[ldegree]/right.coefficients[right.coefficients.count-1]
+                right.coefficients.reversed().enumerated().forEach() { (idx:Int, coeff: Float) in
+                    tmpResult[ldegree-idx] = result[ldegree-idx] - resultCoefficients[ldegree-rdegree]*coeff
+                }
+            }
+            return tmpResult
+        }
         
-        var nextDividePol = left
-//        left.coefficients.reversed().reduce(left) { (polynomial, Float) -> polynomial in
-//            return polynomial(coefficients: [0])
-//        }
         
-        return (polynomial(coefficients: []))
+        return (polynomial(coefficients: resultCoefficients))
     }
     
     //Evaluation of data:
     func eval(x:Float) -> Float {
-        let result = coefficients.reversed().reduce(0) { (result, value) in
+        let result:Float = coefficients.reversed().reduce(0) { (result, value) in
             return result*x+value
         }
         return result;
@@ -171,15 +175,18 @@ struct polynomial:CustomStringConvertible {
         case 2:
            return [-self.coefficients[0]/self.coefficients[1]]
         case 3:
-            let delta = self.coefficients[1] * self.coefficients[1] - 4 * self.coefficients[0] * self.coefficients[0]
+            let delta:Float = self.coefficients[1] * self.coefficients[1] - 4 * self.coefficients[0] * self.coefficients[0]
             if delta < 0 {
                 return []
             } else if delta ==  0 {
-                return []
+                return [(-self.coefficients[1])/(2*self.coefficients[0])]
             } else {
                 return [(-self.coefficients[1] - sqrt(delta))/(2*self.coefficients[0]), (-self.coefficients[1] + sqrt(delta))/(2*self.coefficients[0])]
             }
-            
+        case 4:
+            let p = 0
+            let q = 0
+            return []
         default:
             return []
         }

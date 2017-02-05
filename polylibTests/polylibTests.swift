@@ -147,13 +147,34 @@ class polylibTests: XCTestCase {
         var mpol = pol0*pol1
         XCTAssertEqual(true, mpol == pol1)
         
-        pol0 = polynomial(coefficients: [1.0, 1.0, 2.0, 0.0, 2.0])
+        pol0 = polynomial(coefficients: [0.0, 2.0])
+        mpol = pol0*pol1
+        XCTAssertEqual(pol1.degree+1, mpol.degree)
+        XCTAssertEqual("4.0X+2.0X^3+2.0X^4", mpol.description)
+    
+        pol0 = polynomial(coefficients: [1.0, 1.0, 2.0, 0.0, 1.0])
         pol1 = polynomial(coefficients: [2.0, 0.0, 1.0, 1.0])
         mpol = pol0*pol1
-        print(mpol)
-        print("coucou")
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        XCTAssertEqual(7, mpol.degree)
+        XCTAssertEqual("2.0+2.0X+5.0X^2+2.0X^3+5.0X^4+2.0X^5+X^6+X^7", mpol.description)
+        
+        pol0 = polynomial(coefficients: [2.0, 5.0, 2.0])
+        pol1 = polynomial(coefficients: [1.0, 2.0, 2.0])
+        var dpol = pol0 % pol1
+        XCTAssertEqual("1.0", dpol.description)
+        
+        pol0 = polynomial(coefficients: [2.0, 5.0, 2.0])
+        pol1 = polynomial(coefficients: [1.0, 2.0, 2.0, 7.0])
+        dpol = pol0 % pol1
+        XCTAssertEqual("", dpol.description)
+        
+        pol0 = polynomial(coefficients: [2.0, 5.0, 2.0, 1.0, 4.0])
+        pol1 = polynomial(coefficients: [1.0, 2.0, 2.0])
+        dpol = pol0 % pol1
+        XCTAssertEqual("1.5-1.5X+2.0X^2", dpol.description)
+        
+        
+        
     }
     
     func test4DerivationAndSum() {
