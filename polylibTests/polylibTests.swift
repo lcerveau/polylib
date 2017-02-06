@@ -173,15 +173,27 @@ class polylibTests: XCTestCase {
         dpol = pol0 % pol1
         XCTAssertEqual("1.5-1.5X+2.0X^2", dpol.description)
         
-        
-        
     }
     
     func test4DerivationAndSum() {
-        let pol1 = polynomial(coefficients: [1.0, 1.0, 2.0, 0.0, 2.0])
-        print(∂pol1)
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+            //constant polynomial gives 0 polynom
+        var pol = polynomial(coefficients: [1.0])
+        var dpol = ∂pol
+        XCTAssertEqual(dpol.degree , 0)
+        XCTAssertEqual("1.0+4.0X+8.0X^3", dpol.description)
+
+            //identity polynomial gives 1
+        pol = polynomial(coefficients: [0.0, 1.0])
+        dpol = ∂pol
+        XCTAssertEqual(dpol.degree , 0)
+        XCTAssertEqual("1.0+4.0X+8.0X^3", dpol.description)
+        
+            //arbitrary polynomial
+        pol = polynomial(coefficients: [1.0, 1.0, 2.0, 0.0, 2.0])
+        dpol = ∂pol
+        XCTAssertEqual(dpol.degree , (pol.degree - 1))
+        XCTAssertEqual("1.0+4.0X+8.0X^3", dpol.description)
+        
     }
     
     func test5Legendre() {
@@ -189,7 +201,7 @@ class polylibTests: XCTestCase {
         // Use XCTAssert and related functions to verify your tests produce the correct results.
     }
     
-    func test5Cheybishech() {
+    func test5Cheybishev() {
         // This is an example of a functional test case.
         // Use XCTAssert and related functions to verify your tests produce the correct results.
     }

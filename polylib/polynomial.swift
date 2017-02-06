@@ -7,8 +7,8 @@
 //
 
 import Foundation
-import Accelerate
-
+import CoreGraphics
+import ImageIO
 
 prefix operator ∂
 prefix operator ∫
@@ -165,6 +165,12 @@ struct polynomial:CustomStringConvertible {
         return result;
     }
     
+    //Will draw the polynomial for a given range
+    func draw(interval:Range<Float>, width:Float, height:Float) -> String {
+        
+        return "/";
+    }
+    
 
     func zeros() -> [Float] {
         switch self.coefficients.count {
@@ -196,7 +202,7 @@ struct polynomial:CustomStringConvertible {
     
     //derivative
     static prefix func ∂ (left: polynomial) -> polynomial {
-        var resultCoefficients = [Float](repeating: 0, count: left.degree-1)
+        var resultCoefficients = [Float](repeating: 0, count: left.coefficients.count-1)
         left.coefficients.enumerated().forEach {
             (index: Int, coeff: Float) in
             if index > 0 {
@@ -208,7 +214,7 @@ struct polynomial:CustomStringConvertible {
     
     //sum
     static prefix func ∫ (left: polynomial) -> polynomial {
-        var resultCoefficients = [Float](repeating: 0, count: left.degree+1)
+        var resultCoefficients = [Float](repeating: 0, count: left.coefficients.count+1)
         left.coefficients.enumerated().forEach {
             (index: Int, coeff: Float) in
             resultCoefficients[index+1] = coeff/Float(index)
