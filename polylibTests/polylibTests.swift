@@ -7,6 +7,7 @@
 //
 
 import XCTest
+import AppKit
 @testable import polylib
 
 class polylibTests: XCTestCase {
@@ -120,7 +121,7 @@ class polylibTests: XCTestCase {
         
     }
 
-    func test2Evaluation() {
+    func test2EvaluationAndDraw() {
         //constant polynomial
         var pol = polynomial(coefficients: [2])
         XCTAssertEqual(2, pol.eval(x: 3))
@@ -138,6 +139,17 @@ class polylibTests: XCTestCase {
         XCTAssertEqual(-4.0, pol.eval(x: -1.0))
         XCTAssertEqual(60.0, pol.eval(x: 3.0))
         XCTAssertEqual([-4.0, 3.0, 60.0], pol.eval(x: [-1.0, 0.0, 3.0]))
+        
+        //Draw
+        let drawInterval = Float(-200.0)..<Float(200.0)
+        var fileURLString = pol.draw(interval:drawInterval, width: -1.0, height: 320.0)
+        XCTAssertEqual(fileURLString, "")
+        fileURLString = pol.draw(interval:drawInterval, width: 480.0, height: 0.0)
+        XCTAssertEqual(fileURLString, "")
+        fileURLString = pol.draw(interval:drawInterval, width: 480.0, height: 320.0)
+        print(fileURLString)
+        fileURLString = pol.draw(interval:drawInterval, width: 480.0, height: 320.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
+        print(fileURLString)
     }
     
     func test3ProductAndDivide() {
@@ -179,20 +191,32 @@ class polylibTests: XCTestCase {
             //constant polynomial gives 0 polynom
         var pol = polynomial(coefficients: [1.0])
         var dpol = ∂pol
-        XCTAssertEqual(dpol.degree , 0)
-        XCTAssertEqual("1.0+4.0X+8.0X^3", dpol.description)
+        XCTAssertEqual(dpol.degree , -1)
+        XCTAssertEqual("", dpol.description)
 
             //identity polynomial gives 1
         pol = polynomial(coefficients: [0.0, 1.0])
         dpol = ∂pol
         XCTAssertEqual(dpol.degree , 0)
-        XCTAssertEqual("1.0+4.0X+8.0X^3", dpol.description)
+        XCTAssertEqual("1.0", dpol.description)
         
             //arbitrary polynomial
         pol = polynomial(coefficients: [1.0, 1.0, 2.0, 0.0, 2.0])
         dpol = ∂pol
         XCTAssertEqual(dpol.degree , (pol.degree - 1))
         XCTAssertEqual("1.0+4.0X+8.0X^3", dpol.description)
+        
+            //integral computation simple one
+        pol = polynomial(coefficients: [1.0])
+        var spol = ∫pol
+        XCTAssertEqual(spol.degree , 1)
+        XCTAssertEqual(spol.description , "X")
+        
+            //integral computation simple one
+        pol = polynomial(coefficients: [1.0, 1.0, 3.0, 0.0, 2.0])
+        spol = ∫pol
+        XCTAssertEqual(spol.degree , 5)
+        XCTAssertEqual(spol.description , "X+0.5X^2+X^3+0.4X^5")
         
     }
     

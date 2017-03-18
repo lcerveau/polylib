@@ -6,7 +6,11 @@
 //  Copyright © 2017 MMyneta. All rights reserved.
 //
 
-#import <UIKit/UIKit.h>
+#if TARGET_OS_IOS
+    #import <UIKit/UIKit.h>
+#else
+    #import <Foundation/Foundation.h>
+#endif
 
 //! Project version number for polylib.
 FOUNDATION_EXPORT double polylibVersionNumber;
