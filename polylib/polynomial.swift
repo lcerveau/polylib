@@ -6,10 +6,14 @@
 //  Copyright © 2017 MMyneta. All rights reserved.
 //
 
-import Foundation
+//import Foundation
+import CoreFoundation
 import CoreGraphics
-import CoreGraphics
+import CoreText
 import ImageIO
+#if os(iOS)
+    import UIKit
+#endif
 
 
 prefix operator ∂
@@ -23,16 +27,24 @@ enum PolyDrawOption:Int {
     case exportFormat
 }
 
+//Internal only
+enum AxisPosition:Int {
+    case none = 0
+    case lower = 1
+    case middle
+    case upper
+}
+
+
 struct polynomial:CustomStringConvertible {
     var coefficients:[Float]
     
-    //computed properties. for nil polynomial, -1 is an acceptable value
+    //computed properties. for nil polynomial, -1 is the common value
     var degree:Int {
         return  (coefficients.count - 1)
     }
     
-    //At init we need to check if we are passed array with useless values
-    //(trailing 0)
+    //At init we need to check if we are passed array with useless values (trailing 0)
     init(coefficients:[Float]) {
         
             //we remove all trailings 0
@@ -180,14 +192,14 @@ struct polynomial:CustomStringConvertible {
     //Will draw the polynomial for a given range
     func draw(interval:Range<Float>, width:Float, height:Float, folderPath:String = ".", options:[PolyDrawOption:Any]? = nil) -> String {
         let borderMargin:Float = 10.0
-        let curvePadding:Float = 5.0
+        let titleHeight:Float = 30.0
         var outPathURL:URL
         
             //check values
         guard width > 0.0 else { return "" }
         guard height > 0.0 else { return "" }
         
-        //Get display resolution
+            //Get display resolution
         var pixelResolution:Float = 1.0
         #if os(macOS)
             let mainDisplayID:CGDirectDisplayID = CGMainDisplayID()
@@ -201,7 +213,6 @@ struct polynomial:CustomStringConvertible {
         //Compute out name
         let tmpFormatter:DateFormatter = DateFormatter()
         tmpFormatter.dateFormat = "yyyy-MM-dd-HH'H'mm'm'ss"
-        
         let dateComponent:String = tmpFormatter.string(from: Date())
         let extensionComponent = (pixelResolution > 1.0) ? "@\(Int(pixelResolution))x.jpg" :".jpg"
         let outName:String = "pol("+self.description+")-"+dateComponent+extensionComponent
@@ -210,105 +221,248 @@ struct polynomial:CustomStringConvertible {
         if folderPath.hasPrefix(".") {
             outPathURL = URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent(outName)
         } else {
-            print(NSString(string:folderPath).expandingTildeInPath)
             outPathURL = URL(fileURLWithPath: NSString(string:folderPath).expandingTildeInPath).appendingPathComponent(outName)
         }
         
+            //Get X Parameters. We have pix = scaleX * value + offsetX
+        let minX = interval.lowerBound
+        let maxX = interval.upperBound
+        let deltaX = maxX - minX
+        let deltaPixX = (width - 2 * borderMargin)
+        let scaleX:Float =  deltaPixX / deltaX
+        let offsetX:Float = borderMargin - scaleX * minX
+        
+            //X axis scale
+        var gridX = 100.0
+        if deltaX < 40.0 { gridX = 5.0 }
+        else if deltaX < 120.0 { gridX = 10.0 }
+        else if deltaX < 200.0 { gridX = 20.0 }
+        else if deltaX < 350.0 { gridX = 50.0 }
+        
+            //Compute all Y
+        let pointPerXUnit =  1.0/scaleX
+        let xValues:[Float] = stride(from:interval.lowerBound, through:interval.upperBound, by:pointPerXUnit).map({return $0})
+        let yValues = self.eval(x: xValues)
+        
+            //Get  Y parameters. We have pix = scaleY * value + offsetY
+        guard let minY = yValues.min() else { return "" }
+        guard let maxY = yValues.max() else { return "" }
+        let deltaY = maxY - minY
+        let deltaPixY = (height - 2 * borderMargin - titleHeight)
+        
+            //Y axis scale
+        var gridY = 100.0
+        if deltaY < 40.0 { gridY = 5.0 }
+        else if deltaY < 120.0 { gridY = 10.0 }
+        else if deltaY < 200.0 { gridY = 20.0 }
+        else if deltaY < 350.0 { gridY = 50.0 }
+
+            //Difference with X is that we can have a constant value. In such case we decide arbitrary to have 2 grids in view
+        let scaleY:Float =  (maxY == minY) ? ( Float(deltaPixY) / Float(2 * gridY) ) : ( deltaPixY / (maxY - minY) )
+        let offsetY:Float = (maxY == minY) ? borderMargin : borderMargin - scaleY * minY
+        
+            //Get axis positions as enum
+        let  axisPositionX:AxisPosition = (minY <= 0.0) ? ((maxY <= 0.0) ? .upper : .middle) : .lower
+        let  axisPositionY:AxisPosition = (minX <= 0.0) ? ((maxX <= 0.0) ? .upper : .middle) : .lower
         
         
-        var pointPerXUnit:Float = (interval.upperBound - interval.lowerBound) / width
-        if pointPerXUnit < 1 {
-            pointPerXUnit = 1
-        } else {
-            pointPerXUnit = round(pointPerXUnit)
-        }
+            //TODO : make same scale if close
+//        if max(gridX, gridY) < 2 * min(gridX, gridY) {
+//            gridY = gridX
+//        }
         
-        //}
-        
-        
-        //compute scale for resolution
-        
-            //draw
+        print("gridX : \(gridX)")
+        print("gridY : \(gridY)")
+            //Create bitmap context
         let colorSpace:CGColorSpace = CGColorSpaceCreateDeviceRGB()
         guard let bitmapContext = CGContext(data: nil, width: Int(width*pixelResolution), height: Int(height*pixelResolution), bitsPerComponent: 8, bytesPerRow: 0, space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return ""}
         bitmapContext.scaleBy(x: CGFloat(pixelResolution), y: CGFloat(pixelResolution))
         
+            //Draw Title
+        bitmapContext.saveGState()
+        var alignment = CTTextAlignment.center
+        let alignmentSetting = [CTParagraphStyleSetting(spec: .alignment, valueSize: MemoryLayout.size(ofValue:alignment), value: &alignment)]
+        let titleStyle = CTParagraphStyleCreate(alignmentSetting, alignmentSetting.count)
+        
+        let titleFont:CTFont = CTFontCreateWithName("Monaco" as CFString, 11.0, nil)
+        let titleAttributes:[String:Any] = [kCTFontAttributeName as String:titleFont,
+                                            kCTParagraphStyleAttributeName as String:titleStyle,
+                                            kCTUnderlineStyleAttributeName as String: 0]
+        
+        if let attributeString = CFAttributedStringCreate(kCFAllocatorDefault, ("P(X) = " + self.description + " on [" + String(interval.lowerBound) + ", " + String(interval.upperBound) + "]"+" y: " + String(minY) + " " + String(maxY) ) as CFString, titleAttributes as CFDictionary) {
+            let titleLine:CTLine = CTLineCreateWithAttributedString(attributeString)
+            let titleTypographicsBound = CTLineGetBoundsWithOptions(titleLine, CTLineBoundsOptions(rawValue: 0))
+            bitmapContext.textPosition = CGPoint(x: CGFloat(width/2.0) - titleTypographicsBound.size.width/2.0, y:CGFloat(height - borderMargin - titleHeight*1/3.0))
+            CTLineDraw(titleLine, bitmapContext)
+        }
+        bitmapContext.restoreGState()
+
         
             //Axis : main lines then arrows
         bitmapContext.setStrokeColor(red: 0.0, green: 0, blue: 0, alpha: 1.0)
         bitmapContext.setFillColor(red: 0.0, green: 0, blue: 0, alpha: 1.0)
         bitmapContext.setLineWidth(1.0)
         
-        let startX:CGFloat = floor(CGFloat(borderMargin))
-        let midX:CGFloat = floor(CGFloat(width/2.0))
-        let endX:CGFloat = floor(CGFloat(width - borderMargin))
-        let startY:CGFloat = floor(CGFloat(borderMargin))
-        let midY:CGFloat = floor(CGFloat(height/2.0))
-        let endY:CGFloat = floor(CGFloat(height - borderMargin))
+        let startXAxis:CGFloat = floor(CGFloat(borderMargin))
+        let endXAxis:CGFloat = floor(CGFloat(width - borderMargin))
+        let startYAxis:CGFloat = floor(CGFloat(borderMargin))
+        let endYAxis:CGFloat = floor(CGFloat(height - borderMargin - titleHeight))
+
+        var crossXAxis:CGFloat = 0.0
+        var crossYAxis:CGFloat = 0.0
+        
+        switch axisPositionX {
+        case .lower:
+            crossXAxis = startXAxis
+        case .middle:
+            crossXAxis = CGFloat(offsetX)
+        case .upper:
+            crossXAxis = endXAxis
+        default:
+            crossXAxis = 0.0
+        }
+        
+        switch axisPositionY {
+        case .lower:
+            crossYAxis = startYAxis
+        case .middle:
+            crossYAxis = CGFloat(offsetY)
+        case .upper:
+            crossYAxis = endYAxis
+        default:
+            crossYAxis = 0.0
+        }
+        
         
         bitmapContext.beginPath()
-        bitmapContext.move(to: CGPoint(x: startX, y: midY))
-        bitmapContext.addLine(to:CGPoint(x: endX, y: midY))
-        bitmapContext.move(to: CGPoint(x: midX, y: startY))
-        bitmapContext.addLine(to:CGPoint(x: midX, y: endY))
+        bitmapContext.move(to: CGPoint(x: startXAxis, y: crossYAxis))
+        bitmapContext.addLine(to:CGPoint(x: endXAxis, y: crossYAxis))
+        bitmapContext.move(to: CGPoint(x: crossXAxis, y: startYAxis))
+        bitmapContext.addLine(to:CGPoint(x: crossXAxis, y: endYAxis))
         bitmapContext.strokePath()
         
         bitmapContext.beginPath()
-        bitmapContext.move(to: CGPoint(x:endX - 7.0 , y: midY + 4.0))
-        bitmapContext.addLine(to: CGPoint(x:endX - 7.0, y: midY - 4.0))
-        bitmapContext.addLine(to: CGPoint(x:endX , y: midY))
-        bitmapContext.addLine(to: CGPoint(x:endX - 7.0, y: midY + 4.0))
+        bitmapContext.move(to: CGPoint(x:endXAxis - 7.0 , y: crossYAxis + 4.0))
+        bitmapContext.addLine(to: CGPoint(x:endXAxis - 7.0, y: crossYAxis - 4.0))
+        bitmapContext.addLine(to: CGPoint(x:endXAxis , y: crossYAxis))
+        bitmapContext.addLine(to: CGPoint(x:endXAxis - 7.0, y: crossYAxis + 4.0))
         bitmapContext.fillPath()
         
         bitmapContext.beginPath()
-        bitmapContext.move(to: CGPoint(x:midX - 4.0 , y: endY - 7.0))
-        bitmapContext.addLine(to: CGPoint(x:midX + 4.0, y: endY - 7.0))
-        bitmapContext.addLine(to: CGPoint(x:midX , y: endY))
-        bitmapContext.addLine(to: CGPoint(x:midX - 4.0, y: endY - 7.0))
+        bitmapContext.move(to: CGPoint(x:crossXAxis - 4.0 , y: endYAxis - 7.0))
+        bitmapContext.addLine(to: CGPoint(x:crossXAxis + 4.0, y: endYAxis - 7.0))
+        bitmapContext.addLine(to: CGPoint(x:crossXAxis , y: endYAxis))
+        bitmapContext.addLine(to: CGPoint(x:crossXAxis - 4.0, y: endYAxis - 7.0))
         bitmapContext.fillPath()
         
-            //Grid
-        let intervalWidth:Float = interval.upperBound - interval.lowerBound
-        var gridStep:CGFloat = 100.0
-        if intervalWidth < 40.0 {
-            gridStep = 5.0
-        } else if intervalWidth < 120.0 {
-            gridStep = 10.0
-        } else if intervalWidth < 200.0 {
-            gridStep = 20.0
-        } else if intervalWidth < 350.0 {
-            gridStep = 50.0
-        }
-        print(gridStep)
+            //Grid - including scale
+        var curP:CGFloat = crossXAxis
+        var curN:CGFloat = crossXAxis
         
-        bitmapContext.setLineDash(phase: 0.0, lengths: [2.0, 4.0])
+        let axisStyle = CTParagraphStyleCreate(alignmentSetting, alignmentSetting.count)
+        let axisFont:CTFont = CTFontCreateWithName("Monaco" as CFString, 9.0, nil)
+        let axisAttributes:[String:Any] = [kCTFontAttributeName as String:axisFont,
+                                            kCTParagraphStyleAttributeName as String:axisStyle]
+        
+        let p = (Float(curP) - Float(offsetX))/Float(scaleX)
+        if let attributedString = CFAttributedStringCreate(kCFAllocatorDefault, String(describing: p) as CFString, axisAttributes as CFDictionary) {
+            let axisLine:CTLine = CTLineCreateWithAttributedString(attributedString)
+            bitmapContext.textPosition = CGPoint(x: curP + 2.0 , y:crossYAxis+8)
+            CTLineDraw(axisLine, bitmapContext)
+        }
+        
+        
+        while (true) {
+            curP += CGFloat(gridX) * CGFloat(scaleX)
+            curN -= CGFloat(gridX) * CGFloat(scaleX)
+            
+            guard (curP < endXAxis) else { break }
+            bitmapContext.beginPath()
+            bitmapContext.setLineDash(phase: 0.0, lengths: [2.0, 4.0])
+            bitmapContext.move(to: CGPoint(x: curP, y: startYAxis))
+            bitmapContext.addLine(to: CGPoint(x: curP, y: endYAxis))
+            bitmapContext.move(to: CGPoint(x: curN, y: startYAxis))
+            bitmapContext.addLine(to: CGPoint(x: curN, y: endYAxis) )
+            bitmapContext.strokePath()
+            bitmapContext.beginPath()
+            bitmapContext.setLineDash(phase: 0.0, lengths: [])
+            bitmapContext.move(to: CGPoint(x: curP, y: crossYAxis - 6))
+            bitmapContext.addLine(to: CGPoint(x: curP, y: crossYAxis + 6))
+            bitmapContext.move(to: CGPoint(x: curN, y: crossYAxis - 6))
+            bitmapContext.addLine(to: CGPoint(x: curN, y: crossYAxis + 6))
+            bitmapContext.strokePath()
+            
+            let p = (Float(curP) - Float(offsetX))/Float(scaleX)
+            if let attributeString = CFAttributedStringCreate(kCFAllocatorDefault, String(describing: p ) as CFString, axisAttributes as CFDictionary) {
+                let axisLine:CTLine = CTLineCreateWithAttributedString(attributeString)
+                let axisTypographicsBound = CTLineGetBoundsWithOptions(axisLine, CTLineBoundsOptions(rawValue: 0))
+                bitmapContext.textPosition = CGPoint(x: curP - axisTypographicsBound.width/2, y:crossYAxis+8)
+                CTLineDraw(axisLine, bitmapContext)
+            }
+            
+            let n = (Float(curN) - Float(offsetX))/Float(scaleX)
+            if let attributeString = CFAttributedStringCreate(kCFAllocatorDefault, String(describing: n) as CFString, axisAttributes as CFDictionary) {
+                let axisLine:CTLine = CTLineCreateWithAttributedString(attributeString)
+                let axisTypographicsBound = CTLineGetBoundsWithOptions(axisLine, CTLineBoundsOptions(rawValue: 0))
+                bitmapContext.textPosition = CGPoint(x: curN - axisTypographicsBound.width/2, y:crossYAxis+8)
+                CTLineDraw(axisLine, bitmapContext)
+            }
+        }
+        
+        
+        curP = crossYAxis
+        curN = crossYAxis
+        while (true) {
+            curP += CGFloat(gridY) * CGFloat(scaleY)
+            curN -= CGFloat(gridY) * CGFloat(scaleY)
+            guard (curP < endYAxis) else { break }
+            bitmapContext.beginPath()
+            bitmapContext.setLineDash(phase: 0.0, lengths: [2.0, 4.0])
+            bitmapContext.move(to: CGPoint(x: startXAxis, y: curP))
+            bitmapContext.addLine(to: CGPoint(x: endXAxis, y: curP))
+            bitmapContext.move(to: CGPoint(x: startXAxis, y: curN))
+            bitmapContext.addLine(to: CGPoint(x: endXAxis, y: curN) )
+            bitmapContext.strokePath()
+            bitmapContext.beginPath()
+            bitmapContext.setLineDash(phase: 0.0, lengths: [])
+            bitmapContext.move(to: CGPoint(x: crossXAxis - 8, y: curP))
+            bitmapContext.addLine(to: CGPoint(x: crossXAxis + 8, y: curP))
+            bitmapContext.move(to: CGPoint(x: crossXAxis - 8, y: curN))
+            bitmapContext.addLine(to: CGPoint(x: crossXAxis + 8, y: curN) )
+            bitmapContext.strokePath()
+            
+            let p = (Float(curP) - Float(offsetY))/Float(scaleY)
+
+            if let attributeString = CFAttributedStringCreate(kCFAllocatorDefault, String(describing: p) as CFString, axisAttributes as CFDictionary) {
+                let axisLine:CTLine = CTLineCreateWithAttributedString(attributeString)
+                let axisTypographicsBound = CTLineGetBoundsWithOptions(axisLine, CTLineBoundsOptions(rawValue: 0))
+                bitmapContext.textPosition = CGPoint(x: crossXAxis, y:curP)
+                CTLineDraw(axisLine, bitmapContext)
+            }
+            
+            let n = (Float(curN) - Float(offsetX))/Float(scaleX)
+
+            if let attributeString = CFAttributedStringCreate(kCFAllocatorDefault, String(describing: n) as CFString, axisAttributes as CFDictionary) {
+                let axisLine:CTLine = CTLineCreateWithAttributedString(attributeString)
+                let axisTypographicsBound = CTLineGetBoundsWithOptions(axisLine, CTLineBoundsOptions(rawValue: 0))
+                bitmapContext.textPosition = CGPoint(x: crossXAxis, y:curN)
+                CTLineDraw(axisLine, bitmapContext)
+            }
+        }
+        
+        
+            //The data themselves
+        bitmapContext.setStrokeColor(red: 0.0, green: 0.0, blue: 1.0, alpha: 1.0)
+        bitmapContext.setLineDash(phase: 0, lengths: [])
         bitmapContext.beginPath()
-        var curP = midX
-        var curN = midX
-        while (true) {
-            curP += gridStep
-            curN -= gridStep
-            guard (curP < endX) else { break }
-            bitmapContext.move(to: CGPoint(x: curP, y: startY))
-            bitmapContext.addLine(to: CGPoint(x: curP, y: endY))
-            bitmapContext.move(to: CGPoint(x: curN, y: startY))
-            bitmapContext.addLine(to: CGPoint(x: curN, y: endY) )
-        }
-        
-        curP = midY
-        curN = midY
-        while (true) {
-            curP += gridStep
-            curN -= gridStep
-            guard (curP < endY) else { break }
-            bitmapContext.move(to: CGPoint(x: startX, y: curP))
-            bitmapContext.addLine(to: CGPoint(x: endX, y: curP))
-            bitmapContext.move(to: CGPoint(x: startX, y: curN))
-            bitmapContext.addLine(to: CGPoint(x: endX, y: curN) )
+        xValues.enumerated().forEach(){ (idx:Int, x: Float) in
+            if 0 == idx {
+                bitmapContext.move(to: CGPoint(x: CGFloat(x * scaleX + offsetX), y: CGFloat(offsetY + scaleY * yValues[idx])))
+            } else {
+                bitmapContext.addLine(to: CGPoint(x: CGFloat(x * scaleX + offsetX), y: CGFloat(offsetY + scaleY * yValues[idx])))
+            }
         }
         bitmapContext.strokePath()
-        //bitmapContext.beginPath()
-        
         
             //Export to JPG
         if let contextImage:CGImage = bitmapContext.makeImage(),
