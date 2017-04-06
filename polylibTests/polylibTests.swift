@@ -141,15 +141,27 @@ class polylibTests: XCTestCase {
         XCTAssertEqual([-4.0, 3.0, 60.0], pol.eval(x: [-1.0, 0.0, 3.0]))
         
         //Draw
-        let drawInterval = Float(-200.0)..<Float(200.0)
+        pol = polynomial(coefficients: [2])
+        let drawInterval = Float(-10.0)..<Float(10.0)
         var fileURLString = pol.draw(interval:drawInterval, width: -1.0, height: 320.0)
         XCTAssertEqual(fileURLString, "")
         fileURLString = pol.draw(interval:drawInterval, width: 480.0, height: 0.0)
         XCTAssertEqual(fileURLString, "")
-        fileURLString = pol.draw(interval:drawInterval, width: 480.0, height: 320.0)
+        
+        fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
         print(fileURLString)
-        fileURLString = pol.draw(interval:drawInterval, width: 480.0, height: 320.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
+        
+        pol = polynomial(coefficients: [0, 1])
+        fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
         print(fileURLString)
+//        
+        pol = polynomial(coefficients: [0, 0, 1])
+        fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
+        print(fileURLString)
+//        
+//        pol = polynomial(coefficients: [0, 0, 0, 1])
+//        fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
+//        print(fileURLString)
     }
     
     func test3ProductAndDivide() {
