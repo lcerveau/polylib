@@ -154,14 +154,15 @@ class polylibTests: XCTestCase {
         pol = polynomial(coefficients: [0, 1])
         fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
         print(fileURLString)
-//        
+        
         pol = polynomial(coefficients: [0, 0, 1])
         fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
         print(fileURLString)
-//        
-//        pol = polynomial(coefficients: [0, 0, 0, 1])
-//        fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
-//        print(fileURLString)
+        
+        pol = polynomial(coefficients: [1, 0, -1, 2])
+        fileURLString = pol.draw(interval:Float(-1.0)..<Float(1.0), width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
+        print(fileURLString)
+        
     }
     
     func test3ProductAndDivide() {
