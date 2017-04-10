@@ -234,7 +234,8 @@ struct polynomial:CustomStringConvertible {
         
             //X axis scale
         var gridX = 100.0
-        if deltaX < 40.0 { gridX = 5.0 }
+        if deltaX < 10.0 { gridX = 1.0 }
+        else if deltaX < 40.0 { gridX = 5.0 }
         else if deltaX < 120.0 { gridX = 10.0 }
         else if deltaX < 200.0 { gridX = 20.0 }
         else if deltaX < 350.0 { gridX = 50.0 }
@@ -252,7 +253,8 @@ struct polynomial:CustomStringConvertible {
         
             //Y axis scale
         var gridY = 100.0
-        if deltaY < 40.0 { gridY = 5.0 }
+        if deltaY < 10.0 { gridY = 1.0 }
+        else if deltaY < 40.0 { gridY = 5.0 }
         else if deltaY < 120.0 { gridY = 10.0 }
         else if deltaY < 200.0 { gridY = 20.0 }
         else if deltaY < 350.0 { gridY = 50.0 }
@@ -266,13 +268,6 @@ struct polynomial:CustomStringConvertible {
         let  axisPositionY:AxisPosition = (minX <= 0.0) ? ((maxX <= 0.0) ? .upper : .middle) : .lower
         
         
-            //TODO : make same scale if close
-//        if max(gridX, gridY) < 2 * min(gridX, gridY) {
-//            gridY = gridX
-//        }
-        
-        print("gridX : \(gridX)")
-        print("gridY : \(gridY)")
             //Create bitmap context
         let colorSpace:CGColorSpace = CGColorSpaceCreateDeviceRGB()
         guard let bitmapContext = CGContext(data: nil, width: Int(width*pixelResolution), height: Int(height*pixelResolution), bitsPerComponent: 8, bytesPerRow: 0, space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return ""}
@@ -289,8 +284,28 @@ struct polynomial:CustomStringConvertible {
                                             kCTParagraphStyleAttributeName as String:titleStyle,
                                             kCTUnderlineStyleAttributeName as String: 0]
         
-        if let attributeString = CFAttributedStringCreate(kCFAllocatorDefault, ("P(X) = " + self.description + " on [" + String(interval.lowerBound) + ", " + String(interval.upperBound) + "]"+" y: " + String(minY) + " " + String(maxY) ) as CFString, titleAttributes as CFDictionary) {
-            let titleLine:CTLine = CTLineCreateWithAttributedString(attributeString)
+            //Remove all ^ from title
+        var titleString:String = ("P(X) = " + self.description + " on [" + String(interval.lowerBound) + ", " + String(interval.upperBound) + "]")
+        let titleArray = titleString.characters.split(whereSeparator: { $0 == "^" }).map( {            
+            return String($0)
+        })
+        titleString = titleArray.joined()
+        
+
+        if let titleAttributedString = CFAttributedStringCreateMutable(kCFAllocatorDefault, 0 ) {            
+            CFAttributedStringReplaceString(titleAttributedString, CFRangeMake(0,0), titleString as CFString)
+            CFAttributedStringSetAttributes(titleAttributedString, CFRangeMake(0, titleString.characters.count), titleAttributes as CFDictionary!, true)
+            
+                //But keep trace of where ^ where in order to up script
+            var curPos = 0
+            titleArray.forEach() { (str:String) in
+                curPos += str.characters.count
+                if curPos < titleString.characters.count {
+                    CFAttributedStringSetAttribute(titleAttributedString, CFRangeMake(curPos, 1), kCTSuperscriptAttributeName, 1 as CFNumber)
+                }
+            }
+            print(titleAttributedString)
+            let titleLine:CTLine = CTLineCreateWithAttributedString(titleAttributedString)
             let titleTypographicsBound = CTLineGetBoundsWithOptions(titleLine, CTLineBoundsOptions(rawValue: 0))
             bitmapContext.textPosition = CGPoint(x: CGFloat(width/2.0) - titleTypographicsBound.size.width/2.0, y:CGFloat(height - borderMargin - titleHeight*1/3.0))
             CTLineDraw(titleLine, bitmapContext)
@@ -425,10 +440,10 @@ struct polynomial:CustomStringConvertible {
             bitmapContext.strokePath()
             bitmapContext.beginPath()
             bitmapContext.setLineDash(phase: 0.0, lengths: [])
-            bitmapContext.move(to: CGPoint(x: crossXAxis - 8, y: curP))
-            bitmapContext.addLine(to: CGPoint(x: crossXAxis + 8, y: curP))
-            bitmapContext.move(to: CGPoint(x: crossXAxis - 8, y: curN))
-            bitmapContext.addLine(to: CGPoint(x: crossXAxis + 8, y: curN) )
+            bitmapContext.move(to: CGPoint(x: crossXAxis - 6, y: curP))
+            bitmapContext.addLine(to: CGPoint(x: crossXAxis + 6, y: curP))
+            bitmapContext.move(to: CGPoint(x: crossXAxis - 6, y: curN))
+            bitmapContext.addLine(to: CGPoint(x: crossXAxis + 6, y: curN) )
             bitmapContext.strokePath()
             
             let p = (Float(curP) - Float(offsetY))/Float(scaleY)
@@ -436,7 +451,7 @@ struct polynomial:CustomStringConvertible {
             if let attributeString = CFAttributedStringCreate(kCFAllocatorDefault, String(describing: p) as CFString, axisAttributes as CFDictionary) {
                 let axisLine:CTLine = CTLineCreateWithAttributedString(attributeString)
                 let axisTypographicsBound = CTLineGetBoundsWithOptions(axisLine, CTLineBoundsOptions(rawValue: 0))
-                bitmapContext.textPosition = CGPoint(x: crossXAxis, y:curP)
+                bitmapContext.textPosition = CGPoint(x: crossXAxis+4, y:curP - axisTypographicsBound.height/3.0)
                 CTLineDraw(axisLine, bitmapContext)
             }
             
@@ -445,7 +460,7 @@ struct polynomial:CustomStringConvertible {
             if let attributeString = CFAttributedStringCreate(kCFAllocatorDefault, String(describing: n) as CFString, axisAttributes as CFDictionary) {
                 let axisLine:CTLine = CTLineCreateWithAttributedString(attributeString)
                 let axisTypographicsBound = CTLineGetBoundsWithOptions(axisLine, CTLineBoundsOptions(rawValue: 0))
-                bitmapContext.textPosition = CGPoint(x: crossXAxis, y:curN)
+                bitmapContext.textPosition = CGPoint(x: crossXAxis+4, y:curN)
                 CTLineDraw(axisLine, bitmapContext)
             }
         }
