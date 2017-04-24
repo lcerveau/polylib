@@ -140,7 +140,7 @@ class polylibTests: XCTestCase {
         XCTAssertEqual(60.0, pol.eval(x: 3.0))
         XCTAssertEqual([-4.0, 3.0, 60.0], pol.eval(x: [-1.0, 0.0, 3.0]))
         
-        //Draw
+        //Draw: first some unacceptable inputs, then simple ones for visual check
         pol = polynomial(coefficients: [2])
         let drawInterval = Float(-10.0)..<Float(10.0)
         var fileURLString = pol.draw(interval:drawInterval, width: -1.0, height: 320.0)
@@ -160,6 +160,11 @@ class polylibTests: XCTestCase {
         print(fileURLString)
         
         pol = polynomial(coefficients: [1, 0, -1, 2])
+        fileURLString = pol.draw(interval:Float(-1.0)..<Float(1.0), width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
+        print(fileURLString)
+        
+        
+        pol = polynomial(coefficients: [1, 0, 0, 2, 0, 0, 0, 0, 0, 0, -2, 4])
         fileURLString = pol.draw(interval:Float(-1.0)..<Float(1.0), width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
         print(fileURLString)
         

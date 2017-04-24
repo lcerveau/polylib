@@ -210,14 +210,39 @@ struct polynomial:CustomStringConvertible {
             pixelResolution = 2.0
         #endif
         
-        //Compute out name
+        
+        //Compute an elegant title string with superscript
+        var titleString:String = ("P(X) = " + self.description + " on [" + String(interval.lowerBound) + ", " + String(interval.upperBound) + "]")
+        
+        let mappingSuperScript = [ "\u{0030}":"\u{2070}", "\u{0031}":"\u{00B9}", "\u{0032}":"\u{00B2}",
+                                   "\u{0033}":"\u{00B3}", "\u{0034}":"\u{2074}", "\u{0035}":"\u{2075}",
+                                   "\u{0036}":"\u{2076}", "\u{0037}":"\u{2077}", "\u{0038}":"\u{2078}", "\u{0039}":"\u{2079}"]
+        
+        let titleArray = titleString.characters.split(whereSeparator: { $0 == "^" }).enumerated().map( {
+            (index, tmpCharSub) -> String in
+            
+            var tmpSub = String(tmpCharSub)
+            for (jdx, aSubChar) in tmpSub.characters.enumerated() {
+                if let replaceChar = mappingSuperScript[String(aSubChar)] {
+                    let oneCharRange = tmpSub.index(tmpSub.startIndex, offsetBy: jdx)..<tmpSub.index(tmpSub.startIndex, offsetBy: jdx+1)                    
+                    tmpSub.replaceSubrange(oneCharRange, with: replaceChar)
+                } else {
+                    break;
+                }
+            }
+            return tmpSub
+        })
+        titleString = titleArray.joined()
+        
+            //Compute out name
         let tmpFormatter:DateFormatter = DateFormatter()
         tmpFormatter.dateFormat = "yyyy-MM-dd-HH'H'mm'm'ss"
         let dateComponent:String = tmpFormatter.string(from: Date())
         let extensionComponent = (pixelResolution > 1.0) ? "@\(Int(pixelResolution))x.jpg" :".jpg"
-        let outName:String = "pol("+self.description+")-"+dateComponent+extensionComponent
-
-        //find if absolute or relative path
+        let outName:String = titleString + " - " + dateComponent+extensionComponent
+        
+        
+            //Find if absolute or relative path
         if folderPath.hasPrefix(".") {
             outPathURL = URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent(outName)
         } else {
@@ -279,32 +304,15 @@ struct polynomial:CustomStringConvertible {
         let alignmentSetting = [CTParagraphStyleSetting(spec: .alignment, valueSize: MemoryLayout.size(ofValue:alignment), value: &alignment)]
         let titleStyle = CTParagraphStyleCreate(alignmentSetting, alignmentSetting.count)
         
-        let titleFont:CTFont = CTFontCreateWithName("Monaco" as CFString, 11.0, nil)
+        let titleFont:CTFont = CTFontCreateWithName("Arial" as CFString, 11.0, nil)
         let titleAttributes:[String:Any] = [kCTFontAttributeName as String:titleFont,
                                             kCTParagraphStyleAttributeName as String:titleStyle,
                                             kCTUnderlineStyleAttributeName as String: 0]
-        
-            //Remove all ^ from title
-        var titleString:String = ("P(X) = " + self.description + " on [" + String(interval.lowerBound) + ", " + String(interval.upperBound) + "]")
-        let titleArray = titleString.characters.split(whereSeparator: { $0 == "^" }).map( {            
-            return String($0)
-        })
-        titleString = titleArray.joined()
         
 
         if let titleAttributedString = CFAttributedStringCreateMutable(kCFAllocatorDefault, 0 ) {            
             CFAttributedStringReplaceString(titleAttributedString, CFRangeMake(0,0), titleString as CFString)
             CFAttributedStringSetAttributes(titleAttributedString, CFRangeMake(0, titleString.characters.count), titleAttributes as CFDictionary!, true)
-            
-                //But keep trace of where ^ where in order to up script
-            var curPos = 0
-            titleArray.forEach() { (str:String) in
-                curPos += str.characters.count
-                if curPos < titleString.characters.count {
-                    CFAttributedStringSetAttribute(titleAttributedString, CFRangeMake(curPos, 1), kCTSuperscriptAttributeName, 1 as CFNumber)
-                }
-            }
-            print(titleAttributedString)
             let titleLine:CTLine = CTLineCreateWithAttributedString(titleAttributedString)
             let titleTypographicsBound = CTLineGetBoundsWithOptions(titleLine, CTLineBoundsOptions(rawValue: 0))
             bitmapContext.textPosition = CGPoint(x: CGFloat(width/2.0) - titleTypographicsBound.size.width/2.0, y:CGFloat(height - borderMargin - titleHeight*1/3.0))
