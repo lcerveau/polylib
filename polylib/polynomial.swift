@@ -6,11 +6,11 @@
 //  Copyright © 2017 MMyneta. All rights reserved.
 //
 
-//import Foundation
 import CoreFoundation
 import CoreGraphics
 import CoreText
 import ImageIO
+
 #if os(iOS)
     import UIKit
 #endif
@@ -28,11 +28,25 @@ enum PolyDrawOption:Int {
 }
 
 //Internal only
-enum AxisPosition:Int {
+enum AxisPosition:Int, CustomStringConvertible {
     case none = 0
     case lower = 1
     case middle
     case upper
+    
+    var description: String {
+        switch self {
+        case .none:
+            return "none"
+        case .lower:
+            return "lower"
+        case .middle:
+            return "middle"
+        case .upper:
+            return "upper"
+        }
+    }
+    
 }
 
 
@@ -207,11 +221,11 @@ struct polynomial:CustomStringConvertible {
                 pixelResolution = Float(mainDisplayMode.pixelWidth) / Float(mainDisplayMode.width)
             }
         #elseif os(iOS)
-            pixelResolution = 2.0
+            pixelResolution = UIScreen.main.scale
         #endif
         
         
-        //Compute an elegant title string with superscript
+            //Compute an elegant title string with superscript. We replace all power (^) with superscripts
         var titleString:String = ("P(X) = " + self.description + " on [" + String(interval.lowerBound) + ", " + String(interval.upperBound) + "]")
         
         let mappingSuperScript = [ "\u{0030}":"\u{2070}", "\u{0031}":"\u{00B9}", "\u{0032}":"\u{00B2}",
@@ -234,30 +248,30 @@ struct polynomial:CustomStringConvertible {
         })
         titleString = titleArray.joined()
         
-            //Compute out name
+            //Compute out path name and URL
         let tmpFormatter:DateFormatter = DateFormatter()
         tmpFormatter.dateFormat = "yyyy-MM-dd-HH'H'mm'm'ss"
         let dateComponent:String = tmpFormatter.string(from: Date())
         let extensionComponent = (pixelResolution > 1.0) ? "@\(Int(pixelResolution))x.jpg" :".jpg"
         let outName:String = titleString + " - " + dateComponent+extensionComponent
         
-        
-            //Find if absolute or relative path
         if folderPath.hasPrefix(".") {
             outPathURL = URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent(outName)
         } else {
             outPathURL = URL(fileURLWithPath: NSString(string:folderPath).expandingTildeInPath).appendingPathComponent(outName)
         }
         
-            //Get X Parameters. We have pix = scaleX * value + offsetX
+            //Get X Parameters. We have pointX = scaleX * valueX + offsetX
         let minX = interval.lowerBound
         let maxX = interval.upperBound
+        let minPointX = borderMargin
+        let maxPointX = width - borderMargin
         let deltaX = maxX - minX
-        let deltaPixX = (width - 2 * borderMargin)
-        let scaleX:Float =  deltaPixX / deltaX
+        let deltaPointX = maxPointX - minPointX
+        let scaleX:Float =  deltaPointX / deltaX
         let offsetX:Float = borderMargin - scaleX * minX
         
-            //X axis scale
+            //Grid scale is picked according to what is to be displayed
         var gridX = 100.0
         if deltaX < 10.0 { gridX = 1.0 }
         else if deltaX < 40.0 { gridX = 5.0 }
@@ -265,16 +279,17 @@ struct polynomial:CustomStringConvertible {
         else if deltaX < 200.0 { gridX = 20.0 }
         else if deltaX < 350.0 { gridX = 50.0 }
         
-            //Compute all Y
-        let pointPerXUnit =  1.0/scaleX
-        let xValues:[Float] = stride(from:interval.lowerBound, through:interval.upperBound, by:pointPerXUnit).map({return $0})
+            //Compute all Y: the interval is created using point resolution
+        let xValues:[Float] = stride(from:interval.lowerBound, through:interval.upperBound, by:1.0/scaleX).map({return $0})
         let yValues = self.eval(x: xValues)
         
-            //Get  Y parameters. We have pix = scaleY * value + offsetY
+            //Get Y parameters. We have pointY = scaleY * valueY + offsetY
         guard let minY = yValues.min() else { return "" }
         guard let maxY = yValues.max() else { return "" }
+        let minPointY = borderMargin
+        let maxPointY = width - borderMargin - titleHeight
         let deltaY = maxY - minY
-        let deltaPixY = (height - 2 * borderMargin - titleHeight)
+        let deltaPointY = maxPointY - minPointY
         
             //Y axis scale
         var gridY = 100.0
@@ -284,14 +299,10 @@ struct polynomial:CustomStringConvertible {
         else if deltaY < 200.0 { gridY = 20.0 }
         else if deltaY < 350.0 { gridY = 50.0 }
 
-            //Difference with X is that we can have a constant value. In such case we decide arbitrary to have 2 grids in view
-        let scaleY:Float =  (maxY == minY) ? ( Float(deltaPixY) / Float(2 * gridY) ) : ( deltaPixY / (maxY - minY) )
+        //Difference with X is that we can have a constant value. In such case we decide arbitrary to have 2 grids in view
+        let scaleY:Float =  (maxY == minY) ? ( Float(deltaPointY) / Float(2 * gridY) ) : ( deltaPointY / (maxY - minY) )
         let offsetY:Float = (maxY == minY) ? borderMargin : borderMargin - scaleY * minY
-        
-            //Get axis positions as enum
-        let  axisPositionX:AxisPosition = (minY <= 0.0) ? ((maxY <= 0.0) ? .upper : .middle) : .lower
-        let  axisPositionY:AxisPosition = (minX <= 0.0) ? ((maxX <= 0.0) ? .upper : .middle) : .lower
-        
+
         
             //Create bitmap context
         let colorSpace:CGColorSpace = CGColorSpaceCreateDeviceRGB()
@@ -331,10 +342,16 @@ struct polynomial:CustomStringConvertible {
         let startYAxis:CGFloat = floor(CGFloat(borderMargin))
         let endYAxis:CGFloat = floor(CGFloat(height - borderMargin - titleHeight))
 
-        var crossXAxis:CGFloat = 0.0
+        var crossXAxis:CGFloat = 0.0  //Here this is not clear that we are in representation
         var crossYAxis:CGFloat = 0.0
         
-        switch axisPositionX {
+        
+        //Get axis positions as enum: it depends of the other axis value!!
+        let  axisPositionX:AxisPosition = (minY <= 0.0) ? ((maxY <= 0.0) ? .upper : .middle) : .lower
+        let  axisPositionY:AxisPosition = (minX <= 0.0) ? ((maxX <= 0.0) ? .upper : .middle) : .lower
+
+        
+        switch axisPositionY {
         case .lower:
             crossXAxis = startXAxis
         case .middle:
@@ -345,7 +362,7 @@ struct polynomial:CustomStringConvertible {
             crossXAxis = 0.0
         }
         
-        switch axisPositionY {
+        switch axisPositionX {
         case .lower:
             crossYAxis = startYAxis
         case .middle:
@@ -355,7 +372,7 @@ struct polynomial:CustomStringConvertible {
         default:
             crossYAxis = 0.0
         }
-        
+        Swift.print("X:" + axisPositionX.description + " Y:" + axisPositionY.description)
         
         bitmapContext.beginPath()
         bitmapContext.move(to: CGPoint(x: startXAxis, y: crossYAxis))
