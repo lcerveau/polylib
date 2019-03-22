@@ -3,7 +3,6 @@
 //  polylibTests
 //
 //  Created by Laurent Cerveau on 01/23/2017.
-//  Copyright © 2017 MMyneta. All rights reserved.
 //
 
 import XCTest
@@ -148,15 +147,18 @@ class polylibTests: XCTestCase {
         fileURLString = pol.draw(interval:drawInterval, width: 480.0, height: 0.0)
         XCTAssertEqual(fileURLString, "")
         
-        fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
+        
+        let desktopPath = NSSearchPathForDirectoriesInDomains(.desktopDirectory, .userDomainMask, true)[0]
+            
+        fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: desktopPath, options: nil)
         print(fileURLString)
         
         pol = polynomial(coefficients: [0, 1])
-        fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
+        fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: desktopPath, options: nil)
         print(fileURLString)
         
         pol = polynomial(coefficients: [0, 0, 1])
-        fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: "/Users/lcerveau/Desktop", options: nil)
+        fileURLString = pol.draw(interval:drawInterval, width: 800.0, height: 600.0, folderPath: desktopPath, options: nil)
         print(fileURLString)
         
         pol = polynomial(coefficients: [1, 0, -1, 2])
