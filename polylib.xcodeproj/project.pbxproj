@@ -165,10 +165,11 @@
 			};
 			buildConfigurationList = 2A9FADBE1E35DFDC0075E76E /* Build configuration list for PBXProject "polylib" */;
 			compatibilityVersion = "Xcode 3.2";
-			developmentRegion = English;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = 2A9FADBA1E35DFDC0075E76E;
 			productRefGroup = 2A9FADC51E35DFDD0075E76E /* Products */;
