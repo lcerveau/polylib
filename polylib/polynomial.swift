@@ -208,7 +208,9 @@ struct polynomial:CustomStringConvertible {
         let borderMargin:Float = 10.0
         let titleHeight:Float = 30.0
         var outPathURL:URL
-        
+        print("++ DRAW++")
+        print(width)
+        print(height)
             //check values
         guard width > 0.0 else { return "" }
         guard height > 0.0 else { return "" }
@@ -223,7 +225,7 @@ struct polynomial:CustomStringConvertible {
         #elseif os(iOS)
             pixelResolution = UIScreen.main.scale
         #endif
-        
+        print(pixelResolution)
         
             //Compute an elegant title string with superscript. We replace all power (^) with superscripts
         var titleString:String = ("P(X) = " + self.description + " on [" + String(interval.lowerBound) + ", " + String(interval.upperBound) + "]")
@@ -232,11 +234,11 @@ struct polynomial:CustomStringConvertible {
                                    "\u{0033}":"\u{00B3}", "\u{0034}":"\u{2074}", "\u{0035}":"\u{2075}",
                                    "\u{0036}":"\u{2076}", "\u{0037}":"\u{2077}", "\u{0038}":"\u{2078}", "\u{0039}":"\u{2079}"]
         
-        let titleArray = titleString.characters.split(whereSeparator: { $0 == "^" }).enumerated().map( {
+        let titleArray = titleString.split(whereSeparator: { $0 == "^" }).enumerated().map( {
             (index, tmpCharSub) -> String in
             
             var tmpSub = String(tmpCharSub)
-            for (jdx, aSubChar) in tmpSub.characters.enumerated() {
+            for (jdx, aSubChar) in tmpSub.enumerated() {
                 if let replaceChar = mappingSuperScript[String(aSubChar)] {
                     let oneCharRange = tmpSub.index(tmpSub.startIndex, offsetBy: jdx)..<tmpSub.index(tmpSub.startIndex, offsetBy: jdx+1)                    
                     tmpSub.replaceSubrange(oneCharRange, with: replaceChar)
@@ -247,7 +249,7 @@ struct polynomial:CustomStringConvertible {
             return tmpSub
         })
         titleString = titleArray.joined()
-        
+        print(titleString)
             //Compute out path name and URL
         let tmpFormatter:DateFormatter = DateFormatter()
         tmpFormatter.dateFormat = "yyyy-MM-dd-HH'H'mm'm'ss"
@@ -261,16 +263,14 @@ struct polynomial:CustomStringConvertible {
             outPathURL = URL(fileURLWithPath: NSString(string:folderPath).expandingTildeInPath).appendingPathComponent(outName)
         }
         
-            //Get X Parameters. We have pointX = scaleX * valueX + offsetX
+            //Get X Parameters. We have pointX = scalePointX * valueX + zeroPointX
         let minX = interval.lowerBound
         let maxX = interval.upperBound
         let minPointX = borderMargin
         let maxPointX = width - borderMargin
         let deltaX = maxX - minX
         let deltaPointX = maxPointX - minPointX
-        let scaleX:Float =  deltaPointX / deltaX
-        let offsetX:Float = borderMargin - scaleX * minX
-        
+
             //Grid scale is picked according to what is to be displayed
         var gridX = 100.0
         if deltaX < 10.0 { gridX = 1.0 }
@@ -279,16 +279,20 @@ struct polynomial:CustomStringConvertible {
         else if deltaX < 200.0 { gridX = 20.0 }
         else if deltaX < 350.0 { gridX = 50.0 }
         
-            //Compute all Y: the interval is created using point resolution
-        let xValues:[Float] = stride(from:interval.lowerBound, through:interval.upperBound, by:1.0/scaleX).map({return $0})
-        let yValues = self.eval(x: xValues)
+        let scaleToPointX:Float =  deltaPointX / deltaX
+        let zeroPointX:Float = borderMargin - scaleToPointX * minX
         
-            //Get Y parameters. We have pointY = scaleY * valueY + offsetY
+            //Compute all Y: the interval is created using one visual point resolution
+        let xValues:[Float] = stride(from:interval.lowerBound, through:interval.upperBound, by:1.0/scaleToPointX).map({return $0})
+        let yValues = self.eval(x: xValues)
+       
+            //Get Y parameters. We have pointY = scalePointY * valueY + zeroPointY
         guard let minY = yValues.min() else { return "" }
         guard let maxY = yValues.max() else { return "" }
         let minPointY = borderMargin
-        let maxPointY = width - borderMargin - titleHeight
-        let deltaY = maxY - minY
+        let maxPointY = height - borderMargin - titleHeight
+        //let deltaY = maxY - minY
+        let deltaY = ceil(maxY - minY)
         let deltaPointY = maxPointY - minPointY
         
             //Y axis scale
@@ -299,9 +303,11 @@ struct polynomial:CustomStringConvertible {
         else if deltaY < 200.0 { gridY = 20.0 }
         else if deltaY < 350.0 { gridY = 50.0 }
 
-        //Difference with X is that we can have a constant value. In such case we decide arbitrary to have 2 grids in view
-        let scaleY:Float =  (maxY == minY) ? ( Float(deltaPointY) / Float(2 * gridY) ) : ( deltaPointY / (maxY - minY) )
-        let offsetY:Float = (maxY == minY) ? borderMargin : borderMargin - scaleY * minY
+            //Difference with X is that we can have a constant value. In such case we decide arbitrary to have 2 grids in view
+        //let scaleToPointY:Float =  (maxY == minY) ? ( Float(deltaPointY) / Float(2 * gridY) ) : ( deltaPointY / (maxY - minY) )
+        
+        let scaleToPointY:Float =  (maxY == minY) ? ( Float(deltaPointY) / Float(2 * gridY) ) : ( deltaPointY / deltaY )
+        let zeroPointY:Float = (maxY == minY) ? borderMargin : borderMargin - scaleToPointY * minY
 
         
             //Create bitmap context
@@ -323,7 +329,7 @@ struct polynomial:CustomStringConvertible {
 
         if let titleAttributedString = CFAttributedStringCreateMutable(kCFAllocatorDefault, 0 ) {            
             CFAttributedStringReplaceString(titleAttributedString, CFRangeMake(0,0), titleString as CFString)
-            CFAttributedStringSetAttributes(titleAttributedString, CFRangeMake(0, titleString.characters.count), titleAttributes as CFDictionary!, true)
+            CFAttributedStringSetAttributes(titleAttributedString, CFRangeMake(0, titleString.count), titleAttributes as CFDictionary?, true)
             let titleLine:CTLine = CTLineCreateWithAttributedString(titleAttributedString)
             let titleTypographicsBound = CTLineGetBoundsWithOptions(titleLine, CTLineBoundsOptions(rawValue: 0))
             bitmapContext.textPosition = CGPoint(x: CGFloat(width/2.0) - titleTypographicsBound.size.width/2.0, y:CGFloat(height - borderMargin - titleHeight*1/3.0))
@@ -337,13 +343,13 @@ struct polynomial:CustomStringConvertible {
         bitmapContext.setFillColor(red: 0.0, green: 0, blue: 0, alpha: 1.0)
         bitmapContext.setLineWidth(1.0)
         
-        let startXAxis:CGFloat = floor(CGFloat(borderMargin))
-        let endXAxis:CGFloat = floor(CGFloat(width - borderMargin))
-        let startYAxis:CGFloat = floor(CGFloat(borderMargin))
-        let endYAxis:CGFloat = floor(CGFloat(height - borderMargin - titleHeight))
+        let startPointXAxis:CGFloat = floor(CGFloat(borderMargin))
+        let endPointXAxis:CGFloat = floor(CGFloat(width - borderMargin))
+        let startPointYAxis:CGFloat = floor(CGFloat(borderMargin))
+        let endPointYAxis:CGFloat = floor(CGFloat(height - borderMargin - titleHeight))
 
-        var crossXAxis:CGFloat = 0.0  //Here this is not clear that we are in representation
-        var crossYAxis:CGFloat = 0.0
+        var crossPointXAxis:CGFloat = 0.0  //Here this is not clear that we are in representation
+        var crossPointYAxis:CGFloat = 0.0
         
         
         //Get axis positions as enum: it depends of the other axis value!!
@@ -353,139 +359,144 @@ struct polynomial:CustomStringConvertible {
         
         switch axisPositionY {
         case .lower:
-            crossXAxis = startXAxis
+            crossPointXAxis = startPointXAxis
         case .middle:
-            crossXAxis = CGFloat(offsetX)
+            crossPointXAxis = CGFloat(zeroPointX)
         case .upper:
-            crossXAxis = endXAxis
+            crossPointXAxis = endPointXAxis
         default:
-            crossXAxis = 0.0
+            crossPointXAxis = 0.0
         }
         
         switch axisPositionX {
         case .lower:
-            crossYAxis = startYAxis
+            crossPointYAxis = startPointYAxis
         case .middle:
-            crossYAxis = CGFloat(offsetY)
+            crossPointYAxis = CGFloat(zeroPointY)
         case .upper:
-            crossYAxis = endYAxis
+            crossPointYAxis = endPointYAxis
         default:
-            crossYAxis = 0.0
+            crossPointYAxis = 0.0
         }
-        Swift.print("X:" + axisPositionX.description + " Y:" + axisPositionY.description)
+        Swift.print("AXIS X:" + axisPositionX.description + " Y:" + axisPositionY.description)
         
+            //Draw X Axis
         bitmapContext.beginPath()
-        bitmapContext.move(to: CGPoint(x: startXAxis, y: crossYAxis))
-        bitmapContext.addLine(to:CGPoint(x: endXAxis, y: crossYAxis))
-        bitmapContext.move(to: CGPoint(x: crossXAxis, y: startYAxis))
-        bitmapContext.addLine(to:CGPoint(x: crossXAxis, y: endYAxis))
+        bitmapContext.move(to: CGPoint(x: startPointXAxis, y: crossPointYAxis))
+        bitmapContext.addLine(to:CGPoint(x: endPointXAxis, y: crossPointYAxis))
+        bitmapContext.move(to: CGPoint(x: crossPointXAxis, y: startPointYAxis))
+        bitmapContext.addLine(to:CGPoint(x: crossPointXAxis, y: endPointYAxis))
         bitmapContext.strokePath()
         
         bitmapContext.beginPath()
-        bitmapContext.move(to: CGPoint(x:endXAxis - 7.0 , y: crossYAxis + 4.0))
-        bitmapContext.addLine(to: CGPoint(x:endXAxis - 7.0, y: crossYAxis - 4.0))
-        bitmapContext.addLine(to: CGPoint(x:endXAxis , y: crossYAxis))
-        bitmapContext.addLine(to: CGPoint(x:endXAxis - 7.0, y: crossYAxis + 4.0))
+        bitmapContext.move(to: CGPoint(x:endPointXAxis - 7.0 , y: crossPointYAxis + 4.0))
+        bitmapContext.addLine(to: CGPoint(x:endPointXAxis - 7.0, y: crossPointYAxis - 4.0))
+        bitmapContext.addLine(to: CGPoint(x:endPointXAxis , y: crossPointYAxis))
+        bitmapContext.addLine(to: CGPoint(x:endPointXAxis - 7.0, y: crossPointYAxis + 4.0))
         bitmapContext.fillPath()
         
         bitmapContext.beginPath()
-        bitmapContext.move(to: CGPoint(x:crossXAxis - 4.0 , y: endYAxis - 7.0))
-        bitmapContext.addLine(to: CGPoint(x:crossXAxis + 4.0, y: endYAxis - 7.0))
-        bitmapContext.addLine(to: CGPoint(x:crossXAxis , y: endYAxis))
-        bitmapContext.addLine(to: CGPoint(x:crossXAxis - 4.0, y: endYAxis - 7.0))
+        bitmapContext.move(to: CGPoint(x:crossPointXAxis - 4.0 , y: endPointYAxis - 7.0))
+        bitmapContext.addLine(to: CGPoint(x:crossPointXAxis + 4.0, y: endPointYAxis - 7.0))
+        bitmapContext.addLine(to: CGPoint(x:crossPointXAxis , y: endPointYAxis))
+        bitmapContext.addLine(to: CGPoint(x:crossPointXAxis - 4.0, y: endPointYAxis - 7.0))
         bitmapContext.fillPath()
         
-            //Grid - including scale
-        var curP:CGFloat = crossXAxis
-        var curN:CGFloat = crossXAxis
+            //Grid X - including scale
+        var curP:CGFloat = crossPointXAxis
+        var curN:CGFloat = crossPointXAxis
         
         let axisStyle = CTParagraphStyleCreate(alignmentSetting, alignmentSetting.count)
         let axisFont:CTFont = CTFontCreateWithName("Monaco" as CFString, 9.0, nil)
         let axisAttributes:[String:Any] = [kCTFontAttributeName as String:axisFont,
                                             kCTParagraphStyleAttributeName as String:axisStyle]
         
-        let p = (Float(curP) - Float(offsetX))/Float(scaleX)
+        let p = (Float(curP) - Float(zeroPointX))/Float(scaleToPointX)
+        print("p  + \(p)")
         if let attributedString = CFAttributedStringCreate(kCFAllocatorDefault, String(describing: p) as CFString, axisAttributes as CFDictionary) {
             let axisLine:CTLine = CTLineCreateWithAttributedString(attributedString)
-            bitmapContext.textPosition = CGPoint(x: curP + 2.0 , y:crossYAxis+8)
+            bitmapContext.textPosition = CGPoint(x: curP + 2.0 , y:crossPointYAxis+8)
             CTLineDraw(axisLine, bitmapContext)
         }
         
         
         while (true) {
-            curP += CGFloat(gridX) * CGFloat(scaleX)
-            curN -= CGFloat(gridX) * CGFloat(scaleX)
+            print("gridX+\(gridX)")
+            curP += CGFloat(gridX) * CGFloat(scaleToPointX)
+            curN -= CGFloat(gridX) * CGFloat(scaleToPointX)
             
-            guard (curP < endXAxis) else { break }
+            guard (curP <= endPointXAxis) else { break }
             bitmapContext.beginPath()
             bitmapContext.setLineDash(phase: 0.0, lengths: [2.0, 4.0])
-            bitmapContext.move(to: CGPoint(x: curP, y: startYAxis))
-            bitmapContext.addLine(to: CGPoint(x: curP, y: endYAxis))
-            bitmapContext.move(to: CGPoint(x: curN, y: startYAxis))
-            bitmapContext.addLine(to: CGPoint(x: curN, y: endYAxis) )
+            bitmapContext.move(to: CGPoint(x: curP, y: startPointYAxis))
+            bitmapContext.addLine(to: CGPoint(x: curP, y: endPointYAxis))
+            bitmapContext.move(to: CGPoint(x: curN, y: startPointYAxis))
+            bitmapContext.addLine(to: CGPoint(x: curN, y: endPointYAxis) )
             bitmapContext.strokePath()
             bitmapContext.beginPath()
             bitmapContext.setLineDash(phase: 0.0, lengths: [])
-            bitmapContext.move(to: CGPoint(x: curP, y: crossYAxis - 6))
-            bitmapContext.addLine(to: CGPoint(x: curP, y: crossYAxis + 6))
-            bitmapContext.move(to: CGPoint(x: curN, y: crossYAxis - 6))
-            bitmapContext.addLine(to: CGPoint(x: curN, y: crossYAxis + 6))
+            bitmapContext.move(to: CGPoint(x: curP, y: crossPointYAxis - 6))
+            bitmapContext.addLine(to: CGPoint(x: curP, y: crossPointYAxis + 6))
+            bitmapContext.move(to: CGPoint(x: curN, y: crossPointYAxis - 6))
+            bitmapContext.addLine(to: CGPoint(x: curN, y: crossPointYAxis + 6))
             bitmapContext.strokePath()
             
-            let p = (Float(curP) - Float(offsetX))/Float(scaleX)
+            let p = (Float(curP) - Float(zeroPointX))/Float(scaleToPointX)
+            print(p)
             if let attributeString = CFAttributedStringCreate(kCFAllocatorDefault, String(describing: p ) as CFString, axisAttributes as CFDictionary) {
                 let axisLine:CTLine = CTLineCreateWithAttributedString(attributeString)
                 let axisTypographicsBound = CTLineGetBoundsWithOptions(axisLine, CTLineBoundsOptions(rawValue: 0))
-                bitmapContext.textPosition = CGPoint(x: curP - axisTypographicsBound.width/2, y:crossYAxis+8)
+                bitmapContext.textPosition = CGPoint(x: curP - axisTypographicsBound.width/2, y:crossPointYAxis+8)
                 CTLineDraw(axisLine, bitmapContext)
             }
             
-            let n = (Float(curN) - Float(offsetX))/Float(scaleX)
+            let n = (Float(curN) - Float(zeroPointX))/Float(scaleToPointX)
             if let attributeString = CFAttributedStringCreate(kCFAllocatorDefault, String(describing: n) as CFString, axisAttributes as CFDictionary) {
                 let axisLine:CTLine = CTLineCreateWithAttributedString(attributeString)
                 let axisTypographicsBound = CTLineGetBoundsWithOptions(axisLine, CTLineBoundsOptions(rawValue: 0))
-                bitmapContext.textPosition = CGPoint(x: curN - axisTypographicsBound.width/2, y:crossYAxis+8)
+                bitmapContext.textPosition = CGPoint(x: curN - axisTypographicsBound.width/2, y:crossPointYAxis+8)
                 CTLineDraw(axisLine, bitmapContext)
             }
         }
         
         
-        curP = crossYAxis
-        curN = crossYAxis
+        curP = crossPointYAxis
+        curN = crossPointYAxis
         while (true) {
-            curP += CGFloat(gridY) * CGFloat(scaleY)
-            curN -= CGFloat(gridY) * CGFloat(scaleY)
-            guard (curP < endYAxis) else { break }
+            print(gridY)
+            curP += CGFloat(gridY) * CGFloat(scaleToPointY)
+            curN -= CGFloat(gridY) * CGFloat(scaleToPointY)
+            guard (curP <= endPointYAxis) else { break }
             bitmapContext.beginPath()
             bitmapContext.setLineDash(phase: 0.0, lengths: [2.0, 4.0])
-            bitmapContext.move(to: CGPoint(x: startXAxis, y: curP))
-            bitmapContext.addLine(to: CGPoint(x: endXAxis, y: curP))
-            bitmapContext.move(to: CGPoint(x: startXAxis, y: curN))
-            bitmapContext.addLine(to: CGPoint(x: endXAxis, y: curN) )
+            bitmapContext.move(to: CGPoint(x: startPointXAxis, y: curP))
+            bitmapContext.addLine(to: CGPoint(x: endPointXAxis, y: curP))
+            bitmapContext.move(to: CGPoint(x: startPointXAxis, y: curN))
+            bitmapContext.addLine(to: CGPoint(x: endPointXAxis, y: curN) )
             bitmapContext.strokePath()
             bitmapContext.beginPath()
             bitmapContext.setLineDash(phase: 0.0, lengths: [])
-            bitmapContext.move(to: CGPoint(x: crossXAxis - 6, y: curP))
-            bitmapContext.addLine(to: CGPoint(x: crossXAxis + 6, y: curP))
-            bitmapContext.move(to: CGPoint(x: crossXAxis - 6, y: curN))
-            bitmapContext.addLine(to: CGPoint(x: crossXAxis + 6, y: curN) )
+            bitmapContext.move(to: CGPoint(x: crossPointXAxis - 6, y: curP))
+            bitmapContext.addLine(to: CGPoint(x: crossPointXAxis + 6, y: curP))
+            bitmapContext.move(to: CGPoint(x: crossPointXAxis - 6, y: curN))
+            bitmapContext.addLine(to: CGPoint(x: crossPointXAxis + 6, y: curN) )
             bitmapContext.strokePath()
             
-            let p = (Float(curP) - Float(offsetY))/Float(scaleY)
-
+            let p = (Float(curP) - Float(zeroPointY))/Float(scaleToPointY)
+            print("Value is \(p)")
             if let attributeString = CFAttributedStringCreate(kCFAllocatorDefault, String(describing: p) as CFString, axisAttributes as CFDictionary) {
                 let axisLine:CTLine = CTLineCreateWithAttributedString(attributeString)
                 let axisTypographicsBound = CTLineGetBoundsWithOptions(axisLine, CTLineBoundsOptions(rawValue: 0))
-                bitmapContext.textPosition = CGPoint(x: crossXAxis+4, y:curP - axisTypographicsBound.height/3.0)
+                bitmapContext.textPosition = CGPoint(x: crossPointXAxis+4, y:curP - axisTypographicsBound.height/3.0)
                 CTLineDraw(axisLine, bitmapContext)
             }
             
-            let n = (Float(curN) - Float(offsetX))/Float(scaleX)
-
+            let n = (Float(curN) - Float(zeroPointY))/Float(scaleToPointY)
+print(p)
             if let attributeString = CFAttributedStringCreate(kCFAllocatorDefault, String(describing: n) as CFString, axisAttributes as CFDictionary) {
                 let axisLine:CTLine = CTLineCreateWithAttributedString(attributeString)
-                let axisTypographicsBound = CTLineGetBoundsWithOptions(axisLine, CTLineBoundsOptions(rawValue: 0))
-                bitmapContext.textPosition = CGPoint(x: crossXAxis+4, y:curN)
+                //let axisTypographicsBound = CTLineGetBoundsWithOptions(axisLine, CTLineBoundsOptions(rawValue: 0))
+                bitmapContext.textPosition = CGPoint(x: crossPointXAxis+4, y:curN)
                 CTLineDraw(axisLine, bitmapContext)
             }
         }
@@ -497,9 +508,9 @@ struct polynomial:CustomStringConvertible {
         bitmapContext.beginPath()
         xValues.enumerated().forEach(){ (idx:Int, x: Float) in
             if 0 == idx {
-                bitmapContext.move(to: CGPoint(x: CGFloat(x * scaleX + offsetX), y: CGFloat(offsetY + scaleY * yValues[idx])))
+                bitmapContext.move(to: CGPoint(x: CGFloat(x * scaleToPointX + zeroPointX), y: CGFloat(zeroPointY + scaleToPointY * yValues[idx])))
             } else {
-                bitmapContext.addLine(to: CGPoint(x: CGFloat(x * scaleX + offsetX), y: CGFloat(offsetY + scaleY * yValues[idx])))
+                bitmapContext.addLine(to: CGPoint(x: CGFloat(x * scaleToPointX + zeroPointX), y: CGFloat(zeroPointY + scaleToPointY * yValues[idx])))
             }
         }
         bitmapContext.strokePath()
@@ -539,13 +550,29 @@ struct polynomial:CustomStringConvertible {
             } else {
                 return [(-b - sqrt(delta))/(2*a), (-b + sqrt(delta))/(2*self.coefficients[0])]
             }
-        case 4:
-            let a = self.coefficients[3]
-            let b = self.coefficients[2]
-            let c = self.coefficients[1]
-            let d = self.coefficients[0]
-            let p = -b*b/(3*a*a)+c/a
-            let q = b*(2*b*b/a*a)/(27*a - 9*c/a)+d/a
+        case 4: //Cardan
+            let a = self.coefficients[2]/self.coefficients[3]
+            let b = self.coefficients[1]/self.coefficients[3]
+            let c = self.coefficients[0]/self.coefficients[3]
+    
+            let p = b - a*a/3
+            let q = (2*a*a - 9*b) * a/27 + c
+
+            let delta:Float = 0
+            if delta < 0 {
+                //One real solution only (2 complex)
+            } else if delta == 0 {
+                //one multiple real solution
+            } else {
+                //3 real distinct solutions
+            }
+            return []
+        case 5: //Ferrari
+            let a = self.coefficients[4]
+            let b = self.coefficients[3]
+            let c = self.coefficients[2]
+            let d = self.coefficients[1]
+            let e = self.coefficients[0]
             return []
         default:
             return []
